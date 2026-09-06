@@ -197,6 +197,8 @@ pub(crate) fn run() -> glib::ExitCode {
         eprintln!("Unable to initialize the Strata portal UI: {error}");
         return glib::ExitCode::FAILURE;
     }
+    glib::set_prgname(Some("strata"));
+    glib::set_application_name("Strata");
     crate::metrics::initialize();
     if let Err(error) = tracing_subscriber::fmt::try_init() {
         eprintln!("Unable to initialize logging: {error}");
