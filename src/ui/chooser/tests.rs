@@ -224,40 +224,46 @@ fn folder_accept_shortcut_requires_control_and_enter() {
 }
 
 #[test]
-fn chooser_dimensions_adapt_to_scaled_and_compact_screens() {
-    // 1920x1200 at 1.666x scaling (~1152x720 logical)
+fn chooser_dimensions_leave_margins_on_scaled_screens() {
     let (width, height) = chooser_default_dimensions_for_monitor(1152, 720);
-    assert!(width < 1152, "width must stay inside screen bounds");
-    assert!(height < 720, "height must stay inside screen bounds");
-    assert!(1152 - width >= 120, "width must leave room on the sides");
-    assert!(720 - height >= 100, "height must clear top and bottom bars");
+
     assert_eq!((width, height), (921, 561));
+    assert!(1152 - width >= 120);
+    assert!(720 - height >= 100);
+}
 
-    // Standard 1080p without scaling (1920x1080)
-    let (width, height) = chooser_default_dimensions_for_monitor(1920, 1080);
-    assert_eq!((width, height), (MAX_CHOOSER_WIDTH, MAX_CHOOSER_HEIGHT));
-
-    // Ultrawide / 4K (2560x1440)
-    let (width, height) = chooser_default_dimensions_for_monitor(2560, 1440);
-    assert_eq!((width, height), (MAX_CHOOSER_WIDTH, MAX_CHOOSER_HEIGHT));
-
-    // Small display (1024x768)
-    let (width, height) = chooser_default_dimensions_for_monitor(1024, 768);
-    assert!(width <= 1024 - 120);
-    assert!(height <= 768 - 100);
-    assert_eq!((width, height), (819, 599));
-
-    // Very small screen (800x600) respects minimum bounds and screen width
-    let (width, height) = chooser_default_dimensions_for_monitor(800, 600);
-    assert_eq!((width, height), (640, 468));
-
-    // Degenerate geometry falls back safely
+#[test]
+fn chooser_dimensions_have_maximums_on_large_screens() {
     assert_eq!(
-        chooser_default_dimensions_for_monitor(0, 0),
-        (FALLBACK_CHOOSER_WIDTH, FALLBACK_CHOOSER_HEIGHT)
+        chooser_default_dimensions_for_monitor(1920, 1080),
+        (MAX_CHOOSER_WIDTH, MAX_CHOOSER_HEIGHT)
     );
     assert_eq!(
-        chooser_default_dimensions_for_monitor(-10, -20),
-        (FALLBACK_CHOOSER_WIDTH, FALLBACK_CHOOSER_HEIGHT)
+        chooser_default_dimensions_for_monitor(2560, 1440),
+        (MAX_CHOOSER_WIDTH, MAX_CHOOSER_HEIGHT)
     );
+    assert_eq!(
+        chooser_default_dimensions_for_monitor(i32::MAX, i32::MAX),
+        (MAX_CHOOSER_WIDTH, MAX_CHOOSER_HEIGHT)
+    );
+}
+
+#[test]
+fn chooser_dimensions_adapt_to_compact_screens() {
+    assert_eq!(
+        chooser_default_dimensions_for_monitor(1024, 768),
+        (819, 599)
+    );
+    assert_eq!(chooser_default_dimensions_for_monitor(800, 600), (640, 468));
+    assert_eq!(chooser_default_dimensions_for_monitor(600, 400), (600, 400));
+}
+
+#[test]
+fn chooser_dimensions_fall_back_for_invalid_geometry() {
+    for geometry in [(0, 0), (-10, -20), (1920, 0), (0, 1080)] {
+        assert_eq!(
+            chooser_default_dimensions_for_monitor(geometry.0, geometry.1),
+            (FALLBACK_CHOOSER_WIDTH, FALLBACK_CHOOSER_HEIGHT)
+        );
+    }
 }

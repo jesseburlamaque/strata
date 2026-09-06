@@ -622,24 +622,21 @@ fn eligible_open_entries(entries: Vec<FileEntry>, directory: bool) -> Vec<FileEn
         .collect()
 }
 
-pub(crate) const MIN_CHOOSER_WIDTH: i32 = 640;
-pub(crate) const MIN_CHOOSER_HEIGHT: i32 = 460;
-pub(crate) const MAX_CHOOSER_WIDTH: i32 = 1000;
-pub(crate) const MAX_CHOOSER_HEIGHT: i32 = 680;
-pub(crate) const FALLBACK_CHOOSER_WIDTH: i32 = 920;
-pub(crate) const FALLBACK_CHOOSER_HEIGHT: i32 = 580;
+const MIN_CHOOSER_WIDTH: i32 = 640;
+const MIN_CHOOSER_HEIGHT: i32 = 460;
+const MAX_CHOOSER_WIDTH: i32 = 1000;
+const MAX_CHOOSER_HEIGHT: i32 = 680;
+const FALLBACK_CHOOSER_WIDTH: i32 = 920;
+const FALLBACK_CHOOSER_HEIGHT: i32 = 580;
 
-pub(crate) fn chooser_default_dimensions_for_monitor(
-    monitor_width: i32,
-    monitor_height: i32,
-) -> (i32, i32) {
+fn chooser_default_dimensions_for_monitor(monitor_width: i32, monitor_height: i32) -> (i32, i32) {
     if monitor_width <= 0 || monitor_height <= 0 {
         return (FALLBACK_CHOOSER_WIDTH, FALLBACK_CHOOSER_HEIGHT);
     }
-    let target_width = (monitor_width * 80 / 100)
+    let target_width = (monitor_width.saturating_mul(80) / 100)
         .min(monitor_width.saturating_sub(120))
         .clamp(MIN_CHOOSER_WIDTH.min(monitor_width), MAX_CHOOSER_WIDTH);
-    let target_height = (monitor_height * 78 / 100)
+    let target_height = (monitor_height.saturating_mul(78) / 100)
         .min(monitor_height.saturating_sub(100))
         .clamp(MIN_CHOOSER_HEIGHT.min(monitor_height), MAX_CHOOSER_HEIGHT);
 
@@ -1027,9 +1024,21 @@ fn build_chooser(
 
     gtk::prelude::WidgetExt::realize(&window);
     apply_external_parent(&window, state.request.parent.as_ref());
+    if let Some(surface) = window.surface() {
+        let weak_window = window.downgrade();
+        surface.connect_enter_monitor(move |_, monitor| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let geometry = monitor.geometry();
+            let dimensions =
+                chooser_default_dimensions_for_monitor(geometry.width(), geometry.height());
+            window.set_default_size(dimensions.0, dimensions.1);
+        });
+    }
     if let Some((width, height)) = detect_monitor_geometry(None, Some(&window)) {
-        let (target_width, target_height) = chooser_default_dimensions_for_monitor(width, height);
-        window.set_default_size(target_width, target_height);
+        let dimensions = chooser_default_dimensions_for_monitor(width, height);
+        window.set_default_size(dimensions.0, dimensions.1);
     }
     browser.navigate(Location::local(&state.request.initial_directory));
     window.present();
